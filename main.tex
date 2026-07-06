@@ -80,7 +80,7 @@ A Perceptron is the simplest form of a neural network that makes decisions by co
 The input can be represented as a column vector $X = [x_1, x_2, \dots,x_n]^T$, similarly weight matrix can be written $W = [w_1,w_2,\dots,w_n]^T$ , then the output can be written as $Z = W^TX + b$ where b is the bias, then we apply a \textbf{non linear} activation function say g(z), so the final output given by the perceptron is $\hat{Y} = g(W^TX+b)$.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{perceptron.png}
+    \includegraphics[width=0.8\linewidth]{images/perceptron.png}
     \caption{Perceptron}
     \label{fig:placeholder}
 \end{figure}
@@ -88,7 +88,7 @@ The input can be represented as a column vector $X = [x_1, x_2, \dots,x_n]^T$, s
 For any layer l , we denote the output of previous layers as $a^{[l-1]}$, weight vector as $W^{[l]}$ and bias as $b^{[l]}$, the intermediate calculation $Z^{[l]} = W^{T[l]}a^{[l-1]} + b^{[l]}$, and the final output of this layer is $a^{[L]} = g^{[L]}(Z^{[L]})$ where $g^{[L]}$ is the activation function.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{nn.png}
+    \includegraphics[width=0.5\linewidth]{images/nn.png}
     \caption{}
     \label{fig:placeholder}
 \end{figure}
@@ -224,7 +224,7 @@ Suppose we take the example with one layer,then the formulas are:
 \subsection{Gradient Descent}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{gradi.png}
+    \includegraphics[width=0.5\linewidth]{images/gradi.png}
     \caption{Gradient Descent}
     \label{fig:placeholder}
 \end{figure}
@@ -659,21 +659,21 @@ These are the famous architechures built using varying various different values 
 \subsubsection{LeNet}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{lenet.png}
+    \includegraphics[width=1\linewidth]{images/lenet.png}
     \caption{LetNet Architechure}
     \label{fig:placeholder}
 \end{figure}
 \subsubsection{AlexNet}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\linewidth]{alexnet.png}
+    \includegraphics[width=\linewidth]{images/alexnet.png}
     \caption{AlexNet Architechure}
     \label{fig:placeholder}
 \end{figure}
 \subsubsection{VGG-16}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\linewidth]{vgg.png}
+    \includegraphics[width=\linewidth]{images/vgg.png}
     \caption{}
     \label{fig:placeholder}
 \end{figure}
@@ -681,7 +681,7 @@ These are the famous architechures built using varying various different values 
 In residual network(or ResNet for short) we apply some "skip connection" connections like shown in the image. 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{res.png}
+    \includegraphics[width=0.5\linewidth]{images/res.png}
     \caption{}
     \label{fig:placeholder}
 \end{figure}
@@ -926,6 +926,181 @@ for epoch in range(3):
     print(f"Epoch {epoch+1} | Accuracy: {100. * correct / len(test_loader.dataset):.2f}%")
 \end{lstlisting}
 This achieves an accuracy of 95.54\%. 
+\section{Week 6}
+
+\subsection{Recurrent Neural Networks (RNN)}
+
+So far all the neural networks we have studied assume that every input sample is independent of every other sample. This assumption works perfectly for tasks such as image classification where every image can be processed separately. However, many real world problems involve sequential data where the previous inputs play a very important role in predicting the current output.
+
+Consider the sentence
+
+\begin{center}
+\textit{The clouds are dark, it will probably \_\_\_\_.}
+\end{center}
+
+Even without seeing the last word, it is fairly easy to predict that the missing word could be \textit{rain}. This prediction is only possible because we have access to the previous words. A traditional neural network has no mechanism to remember this information, which is why we need for Recurrent Neural Networks (RNNs).
+
+The key idea behind an RNN is remarkably simple. Instead of discarding all information after processing one input, the network maintains a hidden state which acts as a memory. This hidden state is continuously updated as new inputs arrive, allowing information from previous time steps to influence future predictions.
+
+Suppose the input sequence is
+
+\[
+x^{\langle1\rangle},x^{\langle2\rangle},\ldots,x^{\langle T\rangle}.
+\]
+
+At every time step the hidden state is updated using
+
+\[
+a^{\langle t\rangle}
+=
+g
+\left(
+W_{aa}a^{\langle t-1\rangle}
++
+W_{ax}x^{\langle t\rangle}
++
+b_a
+\right),
+\]
+
+where $g$ is usually chosen as $\tanh$. The prediction at every time step is then computed as
+
+\[
+\hat y^{\langle t\rangle}
+=
+g
+\left(
+W_{ya}a^{\langle t\rangle}
++
+b_y
+\right).
+\]
+
+One important observation is that the weight matrices remain exactly the same at every time step. We are not learning a new neural network for every word in the sequence. Instead, the same parameters are reused repeatedly which allows an RNN to process sequences of arbitrary length while keeping the number of learnable parameters fixed.
+
+Although RNNs perform much better than feedforward networks on sequential data, they suffer from one major drawback. As the sequence becomes longer, the network gradually loses information from the earlier time steps. This makes it difficult to capture long term dependencies, a problem which we will address later using LSTMs and GRUs.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/rnn.png}
+    \caption{Caption}
+    \label{fig:placeholder}
+\end{figure}
+\subsection{Backpropagation Through Time (BPTT)}
+
+Training an RNN is conceptually very similar to training any other neural network. The only difference is that every hidden state depends on the hidden state from the previous time step. Consequently, the loss at the current time step indirectly depends on all previous hidden states as well.
+
+To compute the gradients, we first unroll the RNN across all time steps. After unrolling, the network resembles a very deep feedforward neural network where each layer corresponds to one time step. Since all these layers share the same parameters, the gradients computed from every time step are accumulated before updating the weights. This entire procedure is known as \textbf{Backpropagation Through Time (BPTT).}
+
+The total loss over a sequence is generally written as
+
+\[
+L
+=
+\sum_{t=1}^{T}
+L^{\langle t\rangle},
+\]
+
+where $L^{\langle t\rangle}$ denotes the loss corresponding to the prediction at time step $t$.
+
+One major challenge while performing BPTT is the vanishing and exploding gradient problem. During backpropagation the gradients are repeatedly multiplied while travelling through many time steps. If these values become very small, the network almost stops learning information from the distant past. This is known as the vanishing gradient problem. On the other hand, if they become excessively large, the optimization process becomes unstable, resulting in exploding gradients.
+
+Gradient clipping is often used to handle exploding gradients, while entirely new recurrent architectures such as LSTMs and GRUs were introduced to address the vanishing gradient problem.
+
+\subsection{Long Short-Term Memory (LSTM) and Gated Recurrent Units (GRU)}
+
+As discussed in the previous subsection, vanilla RNNs suffer from the vanishing gradient problem, making it difficult for them to retain information over long sequences. Consequently, they often fail to capture long term dependencies present in sequential data. To overcome this limitation, more sophisticated recurrent architectures such as Long Short-Term Memory (LSTM) networks and Gated Recurrent Units (GRUs) were introduced.
+
+The central idea behind both these architectures is the use of gates. Rather than updating the hidden state blindly at every time step, the network learns what information should be remembered, what should be discarded and what should be passed to the next time step. This allows the network to selectively preserve useful information while eliminating irrelevant details.
+
+An LSTM introduces a separate cell state $C_t$ which acts as the long term memory of the network. Information flows through this cell state with only minor modifications at every time step, making it much easier to preserve important information across long sequences. Three different gates control this flow of information namely the forget gate, input gate and output gate.
+
+The forget gate determines how much of the previous cell state should be retained and is computed as
+
+\[
+f_t=\sigma(W_f[h_{t-1},x_t]+b_f),
+\]
+
+where $\sigma$ denotes the sigmoid activation function. Values close to $1$ indicate that the information should be retained, while values close to $0$ imply that it should be discarded.
+
+The input gate decides what new information should be stored in the memory,
+
+\[
+i_t=\sigma(W_i[h_{t-1},x_t]+b_i),
+\]
+
+while a candidate memory state is generated as
+
+\[
+\tilde{C}_t=\tanh(W_c[h_{t-1},x_t]+b_c).
+\]
+
+Using these quantities, the cell state is updated according to
+
+\[
+C_t=f_t C_{t-1}+i_t\tilde{C}_t,
+\]
+
+where $\odot$ denotes element-wise multiplication.
+
+Finally, the output gate controls what information is passed to the next hidden state,
+
+\[
+o_t=\sigma(W_o[h_{t-1},x_t]+b_o),
+\]
+
+and the hidden state is computed as
+
+\[
+h_t=o_t\tanh(C_t).
+\]
+
+Although these equations may appear intimidating at first glance, the intuition behind them is fairly simple. The forget gate removes unnecessary information, the input gate stores useful new information, while the output gate decides what information should be exposed to the next layer. This gating mechanism enables LSTMs to retain information over significantly longer sequences compared to vanilla RNNs.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/lstm.png}
+    \caption{Caption}
+    \label{fig:placeholder}
+\end{figure}
+Gated Recurrent Units (GRUs) were later proposed as a simpler alternative to LSTMs. Instead of maintaining a separate cell state and three different gates, a GRU combines these ideas into a more compact architecture with only two gates namely the update gate and the reset gate. This considerably reduces the number of learnable parameters while still preserving the ability to model long term dependencies.
+
+The update gate is given by
+
+\[
+z_t=\sigma(W_z[h_{t-1},x_t]+b_z),
+\]
+
+while the reset gate is computed as
+
+\[
+r_t=\sigma(W_r[h_{t-1},x_t]+b_r).
+\]
+
+The reset gate is then used to generate a candidate hidden state,
+
+\[
+\tilde{h}_t=
+\tanh\left(
+W_h[r_t h_{t-1},x_t]+b_h
+\right),
+\]
+
+and the final hidden state is updated according to
+
+\[
+h_t=(1-z_t) h_{t-1}+z_t\tilde{h}_t.
+\]
+
+The update gate determines how much of the previous hidden state should be preserved, while the reset gate controls how much past information should be ignored while computing the candidate hidden state. Despite being considerably simpler than an LSTM, GRUs often achieve very similar performance while requiring fewer parameters and lower computational cost.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/gru.png}
+    \caption{Caption}
+    \label{fig:placeholder}
+\end{figure}
+In practice, both LSTMs and GRUs have largely replaced vanilla RNNs whenever long sequential dependencies are involved. They have been successfully applied to problems such as machine translation, speech recognition, sentiment analysis and time series forecasting.
+
+
+
 
 \printbibliography
 \end{document}
