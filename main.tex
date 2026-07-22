@@ -1,3 +1,5 @@
+%% It is just an empty TeX file.
+%% Write your code here.
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{subcaption}
@@ -47,7 +49,7 @@
 \usetikzlibrary{arrows.meta, positioning}
 
 % preamble
-\title{SUMMER OF SCIENCE \\ Neural Networks}
+\title{OF SCIENCE \\ Neural Networks}
 \author{Harshal Gupta \\ 25B0980}
 \date{}
 \maketitle
@@ -926,6 +928,38 @@ for epoch in range(3):
     print(f"Epoch {epoch+1} | Accuracy: {100. * correct / len(test_loader.dataset):.2f}%")
 \end{lstlisting}
 This achieves an accuracy of 95.54\%. 
+\section{Week 5}
+\subsection{Transfer Learning}
+
+Suppose we have a huge neural network already pretrained on a huge amount of speech recognition data. Now say I want it to very strongly recognize a "wake word" like "Alexa"(the word that wakes up Alexa). Instead of training a whole new network from scratch, I can take this pretrained network, block/freeze the earlier layers, and only fine tune the later layers so the network reacts more strongly to this particular word.
+
+This kind of fine tuning works well when:
+\begin{enumerate}
+    \item Task A and Task B have the same input $x$.
+    \item We have a lot more data for Task A than Task B.
+    \item Low level features learned from Task A could be helpful for learning Task B.
+\end{enumerate}
+
+
+\subsection{Data Augmentation}
+
+More data almost always helps, but collecting new data is expensive. Data augmentation is a cheap way around this, we generate new but realistic training examples out of the ones we already have. In computer vision(say we're building a cat detector), some common techniques are:
+\begin{itemize}
+    \item Random crops
+    \item Flipping(horizontal, sometimes vertical)
+    \item Shearing
+    \item Rotation
+    \item color shifting
+\end{itemize}
+A cat is still a cat if you crop it, flip it, or rotate it slightly, so these transformations let the model see more "versions" of the same image without us collecting a single new photo.
+
+\subsection{Representation Learning}
+
+One interesting thing about Convolutional Neural Networks is that they automatically learn useful representations of the image. We never explicitly tell the network to detect edges, colours or shapes. All we tell it is to minimize the loss function, yet these features naturally emerge during training.
+
+The following figures show what different layers of a CNN are learning. The initial layers mainly detect very simple features such as edges, corners, gradients and colours. These simple features are then combined by the deeper layers to recognize textures and object parts. As we move even deeper into the network, these features are combined further to recognize complete objects. In other words, every layer builds on the features learned by the previous layer.
+
+This also gives us an intuition as to why transfer learning works so well. Low level features such as edges, colours and simple textures are useful for almost every computer vision task. Hence the earlier layers of a pretrained network are already doing a very good job. We only need to retrain the last few layers so that they learn features specific to our new task.
 \section{Week 6}
 
 \subsection{Recurrent Neural Networks (RNN)}
@@ -1099,7 +1133,72 @@ The update gate determines how much of the previous hidden state should be prese
 \end{figure}
 In practice, both LSTMs and GRUs have largely replaced vanilla RNNs whenever long sequential dependencies are involved. They have been successfully applied to problems such as machine translation, speech recognition, sentiment analysis and time series forecasting.
 
+\subsection{Character-Level Language Modelling}
 
+This is the same character level generation idea Karpathy uses to generate baby names in makemore. It's a vanilla RNN(Week 6) trained to predict the next character given all the previous ones, one character at a time. Once trained, we sample from it repeatedly, feeding each generated character back in as the next input(exactly like the inference loop in the GPT section below), until it hits a stop token or the max length.
+
+% TODO: paste your generated dinosaur names / loss curve here
+
+
+\section{Week 7}
+
+\subsection{Attention: Motivation}
+
+So far we were using sequence to sequence models with an encoder and decoders. There is a technique called \textit{attention} which makes these models even better. The attention idea has been one of the most influential ideas in deep learning.
+
+Suppose we are trying to translate a long sentence from French to English. The way we have been building our models, it converts the whole sentence into a vector first and then tries to decode it. This reduces the efficiency if the sentence is long. In reality humans don't do this either. If a human would translate this sentence, he/she wouldn't read the whole sentence and memorize it then try to translate it. He/she translates a part at a time. We will discuss the attention model that works like a human, that looks at parts at a time. This significantly increases the accuracy even with longer sequences.
+
+At first the attention model was developed for machine translation, but then other applications used it like computer vision, and it eventually led to a whole new family of architectures. The attention model was described in this paper: [Bahdanau et al., 2014. Neural Machine Translation by Jointly Learning to Align and Translate]
+
+\subsection{Query, Key, Value}
+
+So now the question is, how does the model actually decide which part of the input to "look at" at any given moment? This is where Query, Key and Value come in, and honestly the easiest way to think about it is like a search engine.
+
+Say you type something into a search bar, that's your \textbf{Query}, what you're looking for. Every document on the internet has some \textbf{Key}, a short description of what it's about, which gets compared against your query. Whichever documents have keys that match your query well, you get their \textbf{Value}, the actual content.
+
+Attention works the exact same way. Every word in our sentence gets turned into three vectors, a query, a key and a value, by multiplying with learned weight matrices:
+$$Q = XW_q, \qquad K = XW_k, \qquad V = XW_v$$
+When a word generates its query, it's basically asking "who in this sentence is relevant to me right now". Every other word offers up its key to answer that, and whichever ones match well, we pull in their value.
+
+When $Q,K,V$ all come from the same sentence $X$, we call this \textbf{self-attention}, i.e. the sentence is attending to itself.
+
+\subsection{Scaled Dot-Product Attention}
+
+Now we need a way to actually measure "how well does this query match this key". The simplest way to measure similarity between two vectors is a dot product, so that's what we use, $QK^T$. The bigger this number, the more the query and key agree, the more attention that word deserves.
+
+There's one catch though. When the vectors are high dimensional, this dot product can get really large, which pushes the softmax we're about to apply into a region where it basically becomes one-hot(all the attention collapses onto a single word, gradients vanish everywhere else). To fix this we scale down by $\sqrt{d_k}$ before doing anything else.
+
+Once we have these scaled scores, we softmax them so they turn into proper weights summing to 1, and use them to take a weighted average of the value vectors:
+$$\text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+This one line is basically the entire mechanism, score how relevant each word is, normalize the scores, mix the values accordingly.
+
+\subsection{Multi-Head Attention}
+
+Here's a problem with just having a single $Q,K,V$: a sentence has many different kinds of relationships between its words at once, grammar, meaning, tone. One single attention "head" can really only latch onto one type of relationship at a time.
+
+So instead we run several heads in parallel, each with its own separate $W_q, W_k, W_v$ matrices, and let each head specialize in whatever relationship it finds useful. We then concatenate all their outputs and pass it through one more linear layer to mix everything back together:
+$$\text{MultiHead}(Q,K,V) = \text{Concat}(head_1,\dots,head_h)\,W_O$$
+
+\subsection{Positional Encoding}
+
+Here's something interesting, self-attention on its own has no idea what order the words came in! If you scrambled the sentence, attention would compute the exact same weights, just scrambled the same way (this is called being permutation invariant). Obviously word order matters a lot, "dog bites man" and "man bites dog" mean very different things.
+
+So we manually inject position information into every word before running attention, by adding a positional vector built out of sines and cosines of different frequencies:
+$$p(t) = [\sin(w_1t), \cos(w_1t), \dots], \qquad w_k = \frac{1}{10000^{2k/d}}$$
+Using multiple frequencies like this gives every position a unique fingerprint (kind of like a fancy binary encoding of position), and it generalizes to sequences longer than anything seen in training.
+
+\subsection{Transformer Architecture}
+
+This is the big one, introduced in \textit{Attention Is All You Need}(Vaswani et al. 2017). The core idea is: why do we even need recurrence anymore? RNNs process one word at a time because each hidden state depends on the previous one, this is slow to train and struggles with long range dependencies. If attention alone can figure out which words are relevant to which, we can throw away recurrence entirely.
+
+The \textbf{encoder} takes the input sentence, adds positional encoding (since plain attention doesn't know word order), and passes it through a stack of $N$ identical blocks. Each block does multi-head self attention, then a residual connection and layer norm, then a small feedforward MLP, then another residual connection and layer norm.
+
+The \textbf{decoder} looks almost identical, but with two differences. First, its self attention is \textbf{masked}, future words are hidden (set to $-\infty$ before the softmax) so the model can't cheat by peeking ahead while generating. Second, it has an extra attention layer right after, where the Query comes from the decoder but the Key and Value come from the encoder's output, this is exactly how the decoder "looks back" at the original sentence while generating, just like our attention model from the very first section!
+
+Finally, the decoder's output goes through one linear layer and a softmax over the vocabulary to predict the next word.
+
+\section{Week 8}
+ALl the models were implemented in a very basic fashion. The transformer was made following the official keras tutorial [https://keras.io/examples/nlp/text_classification_with_transformer/]. It is coded up in the notebook inside the Project folder. 
 
 
 \printbibliography
